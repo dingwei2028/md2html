@@ -19,10 +19,11 @@ def bat_onepage():
         '',
         'if "%~1"=="" (',
         '  echo.',
-        '  echo  [md2onepagehtml] 把一个目录下的多份 Markdown 合并成一个单文件 HTML',
+        '  echo  [md2onepagehtml] 把多份 Markdown 合并成一个单文件 HTML',
         '  echo  ---------------------------------------------------------------',
-        '  echo   用法1: 把文件夹直接拖到本窗口上，回车',
-        '  echo   用法2: 输入文件夹路径后回车',
+        '  echo   用法1: 拖入文件夹        = 合并整个目录',
+        '  echo   用法2: 拖入多个 .md 文件 = 只合并这几篇',
+        '  echo   用法3: 输入文件夹路径后回车（文件夹与文件可混搭）',
         '  echo.',
         '  set /p D= 目录: ',
         '  if not defined D exit /b 0',
@@ -49,7 +50,7 @@ def bat_onepage():
         'pause',
         '',
     ]
-    return '\r\n'.join(lines) + '\r\n'
+    return '\n'.join(lines) + '\n'
 
 
 def bat_content(portrait):
@@ -99,7 +100,7 @@ def bat_content(portrait):
         'pause',
         '',
     ]
-    return '\r\n'.join(lines) + '\r\n'
+    return '\n'.join(lines) + '\n'
 
 bats = [
     (os.path.join(HERE, 'md2html.bat'), 'desktop'),
@@ -111,6 +112,6 @@ for path, kind in bats:
         content = bat_onepage()
     else:
         content = bat_content(kind == 'portrait')
-    with io.open(path, 'w', encoding='gbk') as f:
+    with io.open(path, 'w', encoding='gbk', newline='\r\n') as f:
         f.write(content)
     print('written:', path)

@@ -102,12 +102,18 @@ python md2html.py <xxx.md> [desktop|portrait] [--theme t1..t10]
 `md2html` 是「一份 md → 一份 HTML」；`md2onepagehtml` 是「**一个目录下所有 md → 一份 HTML**」，
 适合把整套文档 / 抓下来的一批 README 合成一个可检索的单文件页面。
 
-**拖拽（最简单）**：把**文件夹**拖到 `md2onepagehtml.bat` 上，回车。
+**拖拽（最简单）**：
+
+- 拖**文件夹** → 合并整个目录；
+- 拖**多个 `.md` 文件** → 只合并你选中的这几篇（按拖入顺序）；
+- 文件夹和文件可以混着拖。
 
 **命令行**：
 ```
 md2onepagehtml.bat D:\某目录
+md2onepagehtml.bat D:\docs\a.md D:\docs\b.md
 python md2onepagehtml.py D:\某目录 -o D:\输出.html --theme t10 --portrait
+python md2onepagehtml.py D:\docs\a.md D:\docs\b.md --portrait
 ```
 
 | 参数 | 作用 |
@@ -123,6 +129,7 @@ python md2onepagehtml.py D:\某目录 -o D:\输出.html --theme t10 --portrait
 | `--exclude` | 排除文件名含指定关键字的 md，逗号分隔 |
 
 产物特点：
+- 输入是**目录**时输出 `该目录\目录名.html`；输入是**文件**时输出与首个 md 同名同位置的 `.html`；
 - 每篇一个卡片，**首个 `#` 标题**自动提成篇名；侧栏是「篇 + 小节」两级目录，配**过滤框**、滚动高亮；
 - 图片默认内联成 data URI，HTML **拷到任何机器都能看**；
 - README 里的相对链接会自动改写成该仓库的 GitHub 地址（从 git remote 推断，

@@ -5,12 +5,13 @@ md2onepagehtml —— 把一个目录下的多份 Markdown 合并成一个单文
 与 md2html.py 共用同一套引擎（同目录 import），零第三方依赖、完全离线。
 
 用法:
-  python md2onepagehtml.py <目录> [-o 输出.html] [--title 标题] [--theme t1..t10]
+  python md2onepagehtml.py <目录|md文件...> [-o 输出.html] [--title 标题] [--theme t1..t10]
                            [--portrait] [--recursive] [--no-inline-img]
                            [--fetch-remote-img] [--base-url URL] [--exclude 关键字]
 
 常用:
   python md2onepagehtml.py D:\docs                    # 目录下所有 md -> D:\docs\docs.html
+  python md2onepagehtml.py D:\docs\a.md D:\docs\b.md  # 只合并指定的几篇 -> a.html
   python md2onepagehtml.py D:\docs -o 合集.html --portrait
   python md2onepagehtml.py D:\docs --recursive --theme t10
 """
@@ -103,6 +104,31 @@ def repo_bases(url, cache):
     br = _default_branch(path, cache)
     return (f"https://raw.githubusercontent.com/{path}/{br}/",
             f"https://github.com/{path}/blob/{br}/")
+
+
+def collect_paths(paths, recursive=False, exclude=()):
+    """参数既可以是目录，也可以是 .md 文件，还能混搭。
+
+    目录 -> 展开成该目录下的 md；文件 -> 直接采用，保持命令行顺序。
+    """
+    out, skipped = [], []
+    for p in paths:
+        ap = os.path.abspath(p)
+        if os.path.isdir(ap):
+            out.extend(collect_mds(ap, recursive, exclude))
+        elif os.path.isfile(ap) and ap.lower().endswith((".md", ".markdown")):
+            out.append(ap)
+        else:
+            skipped.append(p)
+    for s in skipped:
+        print("  跳过（不是目录也不是 md 文件）: %s" % s)
+    seen, res = set(), []
+    for f in out:                      # 去重且保持顺序
+        k = os.path.normcase(os.path.abspath(f))
+        if k not in seen:
+            seen.add(k)
+            res.append(f)
+    return res
 
 
 def collect_mds(root, recursive=False, exclude=()):
@@ -337,24 +363,34 @@ FAVICON = ("<link rel=\"icon\" type=\"image/svg+xml\" href=\"data:image/svg+xml,
            "%E5%90%88%3C/text%3E%3C/svg%3E\">")
 
 
-def build(root, out_path, title, theme, portrait, recursive,
-          do_inline, fetch_remote, base_url, exclude):
-    files = collect_mds(root, recursive, exclude)
-    if not files:
-        raise SystemExit("目录下没有找到 .md 文件: " + root)
+def rel_label(path, roots):
+    """展示用的相对路径：优先相对所属根目录，否则退回文件名。"""
+    for r in roots:
+        try:
+            rel = os.path.relpath(path, r)
+            if not rel.startswith(".."):
+                return rel
+        except ValueError:
+            continue
+    return os.path.basename(path)
 
+
+def build(files, roots, out_path, title, theme, portrait,
+          do_inline, fetch_remote, base_url):
     raw_base = blob_base = None
     if base_url:
         raw_base = base_url if base_url.endswith("/") else base_url + "/"
         blob_base = re.sub(r"github\.com/([^/]+/[^/]+)/", r"github.com/\1/blob/",
                            raw_base.replace("raw.githubusercontent.com", "github.com"), count=1)
     else:
-        raw_base, blob_base = detect_git_base(root)
+        raw_base, blob_base = detect_git_base(roots[0]) if roots else (None, None)
 
     log, docs, toc = [], [], []
     esc = _html.escape
     t0 = time.time()
-    index_map = parse_index_map(root)
+    index_map = {}
+    for r in roots:
+        index_map.update(parse_index_map(r))
     br_cache = {}
     if index_map:                       # 并行预热分支查询，省掉串行等待
         from concurrent.futures import ThreadPoolExecutor
@@ -367,7 +403,7 @@ def build(root, out_path, title, theme, portrait, recursive,
             list(ex.map(lambda p: _default_branch(p, br_cache), paths))
 
     for idx, path in enumerate(files):
-        rel = os.path.relpath(path, root)
+        rel = rel_label(path, roots)
         f_raw, f_blob = raw_base, blob_base
         if os.path.basename(path) in index_map:
             f_raw, f_blob = repo_bases(index_map[os.path.basename(path)], br_cache)
@@ -456,7 +492,7 @@ def main():
     ap = argparse.ArgumentParser(
         description="把一个目录下的多份 Markdown 合并成一个单文件 HTML",
         formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("dir", help="包含 .md 文件的目录")
+    ap.add_argument("paths", nargs="+", help="目录 或 .md 文件（可混搭多个）")
     ap.add_argument("-o", "--output", default=None, help="输出 HTML 路径（默认 目录名.html，放在该目录内）")
     ap.add_argument("--title", default=None, help="页面标题（默认取目录名）")
     ap.add_argument("--theme", default="t1", help="配色 t1..t10（默认 t1）")
@@ -469,18 +505,30 @@ def main():
     ap.add_argument("--exclude", default="", help="排除文件名含这些关键字的 md，逗号分隔")
     a = ap.parse_args()
 
-    root = os.path.abspath(a.dir)
-    if not os.path.isdir(root):
-        print("目录不存在: %s" % root)
-        sys.exit(1)
-    title = a.title or os.path.basename(root.rstrip("\\/")) or "合集"
-    out = a.output or os.path.join(root, title + ".html")
     exclude = tuple(x.strip() for x in a.exclude.split(",") if x.strip())
+    files = collect_paths(a.paths, a.recursive, exclude)
+    if not files:
+        print("没有找到可用的 Markdown：%s" % "  ".join(a.paths))
+        print("提示：这里要放目录（合并整个目录）或 .md 文件（合并指定的几篇）")
+        sys.exit(1)
 
-    print("[md2onepagehtml] 目录: %s" % root)
+    dirs = [os.path.abspath(p) for p in a.paths if os.path.isdir(os.path.abspath(p))]
+    roots = list(dict.fromkeys(
+        dirs + [os.path.dirname(os.path.abspath(f)) for f in files]))
+
+    if a.output:
+        out = a.output
+    elif dirs:                                   # 输的是目录：目录名.html，放该目录内
+        out = os.path.join(dirs[0], os.path.basename(dirs[0].rstrip("\\/")) + ".html")
+    else:                                        # 输的是文件：与第一个 md 同名同目录
+        out = os.path.splitext(files[0])[0] + ".html"
+    title = a.title or (os.path.basename(dirs[0].rstrip("\\/")) if dirs
+                        else os.path.splitext(os.path.basename(files[0]))[0])
+
+    print("[md2onepagehtml] 共 %d 篇待合并" % len(files))
     try:
-        build(root, out, title, a.theme, a.portrait, a.recursive,
-              not a.no_inline_img, a.fetch_remote_img, a.base_url, exclude)
+        build(files, roots, out, title, a.theme, a.portrait,
+              not a.no_inline_img, a.fetch_remote_img, a.base_url)
     except SystemExit:
         raise
     except Exception as e:
