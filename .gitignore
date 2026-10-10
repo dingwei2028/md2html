@@ -1,0 +1,16 @@
+# 生成产物（HTML 是工具输出，不入库）
+*.html
+
+# 开发过程素材：测试文件、截图、开发日志
+_test/
+_shots/
+PROJECT_LOG.md
+
+# Python
+__pycache__/
+*.py[cod]
+
+# 系统杂项
+.DS_Store
+Thumbs.db
+desktop.ini
