@@ -493,7 +493,9 @@ def main():
         description="把一个目录下的多份 Markdown 合并成一个单文件 HTML",
         formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("paths", nargs="+", help="目录 或 .md 文件（可混搭多个）")
-    ap.add_argument("-o", "--output", default=None, help="输出 HTML 路径（默认 目录名.html，放在该目录内）")
+    ap.add_argument("-o", "--output", default=None,
+                    help="输出 HTML 路径（默认：目录→目录名.html；单篇→同名.html；"
+                         "多篇散文件→首个文件名-合集.html）")
     ap.add_argument("--title", default=None, help="页面标题（默认取目录名）")
     ap.add_argument("--theme", default="t1", help="配色 t1..t10（默认 t1）")
     ap.add_argument("--portrait", action="store_true", help="竖屏/手机优先版式")
@@ -520,12 +522,22 @@ def main():
         out = a.output
     elif dirs:                                   # 输的是目录：目录名.html，放该目录内
         out = os.path.join(dirs[0], os.path.basename(dirs[0].rstrip("\\/")) + ".html")
-    else:                                        # 输的是文件：与第一个 md 同名同目录
+    elif len(files) == 1:                        # 只有一篇：与它同名同目录
         out = os.path.splitext(files[0])[0] + ".html"
-    title = a.title or (os.path.basename(dirs[0].rstrip("\\/")) if dirs
-                        else os.path.splitext(os.path.basename(files[0]))[0])
+    else:                                        # 多篇散文件：合成一个「合集」
+        out = os.path.join(os.path.dirname(files[0]),
+                           os.path.splitext(os.path.basename(files[0]))[0] + "-合集.html")
 
-    print("[md2onepagehtml] 共 %d 篇待合并" % len(files))
+    if a.title:
+        title = a.title
+    elif dirs:
+        title = os.path.basename(dirs[0].rstrip("\\/"))
+    elif len(files) == 1:
+        title = os.path.splitext(os.path.basename(files[0]))[0]
+    else:
+        title = "Markdown 合集"
+
+    print("[md2onepagehtml] 共 %d 篇，合并为 1 个 HTML" % len(files))
     try:
         build(files, roots, out, title, a.theme, a.portrait,
               not a.no_inline_img, a.fetch_remote_img, a.base_url)
