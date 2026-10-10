@@ -6,6 +6,9 @@ _test/
 _shots/
 PROJECT_LOG.md
 
+# 本机配色选择（由「设置默认配色.bat」生成，出厂默认 t1 无需入库）
+_theme.conf
+
 # Python
 __pycache__/
 *.py[cod]

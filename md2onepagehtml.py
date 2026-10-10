@@ -29,8 +29,8 @@ import urllib.request
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from md2html import (  # noqa: E402  复用同目录引擎
     BASE_CSS, LAYOUT_DESKTOP, LAYOUT_PORTRAIT, THEMES,
-    fix_internal_anchors, parse_blocks, read_md, render_blocks,
-    slug_text, theme_css, theme_panel_html,
+    default_theme, fix_internal_anchors, parse_blocks, read_md,
+    render_blocks, slug_text, theme_css, theme_panel_html,
 )
 
 UA = {"User-Agent": "Mozilla/5.0 (compatible; md2onepagehtml)"}
@@ -497,7 +497,8 @@ def main():
                     help="输出 HTML 路径（默认：目录→目录名.html；单篇→同名.html；"
                          "多篇散文件→首个文件名-合集.html）")
     ap.add_argument("--title", default=None, help="页面标题（默认取目录名）")
-    ap.add_argument("--theme", default="t1", help="配色 t1..t10（默认 t1）")
+    ap.add_argument("--theme", default=default_theme(),
+                    help="配色 t1..t10（默认读 _theme.conf，出厂为 t1）")
     ap.add_argument("--portrait", action="store_true", help="竖屏/手机优先版式")
     ap.add_argument("--recursive", action="store_true", help="递归子目录")
     ap.add_argument("--no-inline-img", action="store_true", help="图片不内联（保留原路径）")

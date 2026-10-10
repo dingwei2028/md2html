@@ -536,6 +536,22 @@ def slug_text(s):
     """取纯文本（去掉行内 markdown 符号）"""
     return re.sub(r'[`*_~\[\]\(\)#!|]', '', s).strip()
 
+THEME_CONF = '_theme.conf'
+
+
+def default_theme():
+    """默认配色：优先读工具目录下的 _theme.conf（由「设置默认配色.bat」写入），否则 t1。"""
+    try:
+        p = os.path.join(os.path.dirname(os.path.abspath(__file__)), THEME_CONF)
+        if os.path.isfile(p):
+            v = open(p, encoding='utf-8').read().strip()
+            if v in THEMES:
+                return v
+    except Exception:
+        pass
+    return 't1'
+
+
 def gen_html(md_path, mode, default_theme='t1'):
     if default_theme not in THEMES:
         default_theme = 't1'
@@ -590,7 +606,7 @@ if __name__ == '__main__':
         sys.exit(1)
     src = sys.argv[1]
     mode = 'desktop'
-    theme = 't1'
+    theme = default_theme()
     rest = sys.argv[2:]
     for i, a in enumerate(rest):
         if a == '--theme' and i + 1 < len(rest):
